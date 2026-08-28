@@ -30,7 +30,6 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
-    /* 100vhのみに依存しない。対応環境ではdvh/svhで上書きされる */
     height: 100vh;
     height: 100dvh;
     overscroll-behavior: none;
@@ -39,12 +38,11 @@
   body {
     display: flex;
     flex-direction: column;
-    /* 画面端の切り欠き・ノッチとUIが重ならないようにする */
     padding: max(12px, env(safe-area-inset-top, 0px))
              max(12px, env(safe-area-inset-right, 0px))
              max(12px, env(safe-area-inset-bottom, 0px))
              max(12px, env(safe-area-inset-left, 0px));
-    overflow-x: hidden; /* 横スクロール禁止 */
+    overflow-x: hidden;
   }
 
   h1 {
@@ -53,7 +51,7 @@
   }
 
   /* ==========================================================
-     上部の操作パネル（重ね再生スイッチ・案内・ステータス）
+     上部の操作パネル
   ========================================================== */
   .toolbar {
     display: flex;
@@ -94,7 +92,7 @@
   }
 
   /* ==========================================================
-     すべて停止ボタン（常に見える大きな赤ボタン）
+     すべて停止ボタン
   ========================================================== */
   #stopAllBtn {
     display: block;
@@ -122,8 +120,6 @@
 
   /* ==========================================================
      効果音ボタンのグリッド
-     縦向き2列 / 横向き4列を基本に、minmax・clampで
-     Split View等の狭い幅でも破綻しないようにする
   ========================================================== */
   .grid {
     display: grid;
@@ -140,7 +136,6 @@
     }
   }
 
-  /* 画面幅がとても狭い場合（Split View等）の追加フォールバック */
   @media (max-width: 480px) {
     .grid {
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -202,20 +197,38 @@
     content: "▶ 再生中 ";
   }
 
-  /* エラー表示の視覚強調（色だけに頼らない） */
+  /* 進行状況バー（残り時間テキストと併用し、色だけに頼らない） */
+  .sound-progress-track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .sound-progress-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: #ffffff;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sound-progress-fill {
+      transition: width 0.15s linear;
+    }
+  }
+
   .sound-btn.has-error {
     border-color: #fecaca;
     border-style: dashed;
   }
 
-  /* アニメーションを抑えたい利用者への配慮 */
   @media (prefers-reduced-motion: reduce) {
     .sound-btn, #stopAllBtn {
       transition: none !important;
     }
   }
 
-  /* スクリーンリーダー専用の見えないテキスト用（必要になった場合の予備） */
   .sr-only {
     position: absolute;
     width: 1px; height: 1px;
@@ -234,7 +247,7 @@
       <input type="checkbox" id="overlapToggle">
       重ね再生（複数の音を同時に鳴らす）
     </label>
-    <div id="statusRegion" role="status" aria-live="polite">準備完了</div>
+    <div id="statusRegion" role="status" aria-live="polite" aria-atomic="true">準備完了</div>
     <div class="volume-hint">音量調整は iPad 本体の物理ボタンで行ってください</div>
   </div>
 
@@ -254,16 +267,18 @@
      label  : ボタンに大きく表示される文字
      file   : ./audio/ フォルダの中のMP3ファイル名（相対パス）
      color  : ボタンの背景色（#から始まる16進数カラーコード）
+     order  : 表示順（数字が小さいほど先に表示される。並べ替えたいときは
+              配列そのものを動かさず、この数字だけ変えればよい）
   ============================================================ */
   const SOUND_CONFIG = [
-    { id: "sound-08", label: "爆発", file: "./audio/20260819_070139000_iOS.mp3", color: "#2563EB" },
-    { id: "sound-02", label: "扉", file: "./audio/20260821_061138000_iOS.mp3", color: "#7C3AED" },
-    { id: "sound-03", label: "足音", file: "./audio/20260821_061138000_iOS 1.mp3", color: "#0F766E" },
-    { id: "sound-04", label: "音源4", file: "./audio/20260821_061138000_iOS 2.mp3", color: "#B45309" },
-    { id: "sound-05", label: "バサー", file: "./audio/20260821_061645000_iOS.mp3", color: "#BE123C" },
-    { id: "sound-06", label: "シュイン", file: "./audio/20260821_061717000_iOS.mp3", color: "#0369A1" },
-    { id: "sound-07", label: "ホワン", file: "./audio/20260821_061739000_iOS.mp3", color: "#4D7C0F" },
-    { id: "sound-01", label: "あらすじ", file: "./audio/20260821_120941000_iOS.mp3", color: "#9333EA" }
+    { id: "sound-08", label: "爆発",     file: "./audio/20260819_070139000_iOS.mp3",   color: "#2563EB", order: 1 },
+    { id: "sound-02", label: "扉",       file: "./audio/20260821_061138000_iOS.mp3",   color: "#7C3AED", order: 2 },
+    { id: "sound-03", label: "足音",     file: "./audio/20260821_061138000_iOS 1.mp3", color: "#0F766E", order: 3 },
+    { id: "sound-04", label: "音源4",    file: "./audio/20260821_061138000_iOS 2.mp3", color: "#B45309", order: 4 },
+    { id: "sound-05", label: "バサー",   file: "./audio/20260821_061645000_iOS.mp3",   color: "#BE123C", order: 5 },
+    { id: "sound-06", label: "シュイン", file: "./audio/20260821_061717000_iOS.mp3",   color: "#0369A1", order: 6 },
+    { id: "sound-07", label: "ホワン",   file: "./audio/20260821_061739000_iOS.mp3",   color: "#4D7C0F", order: 7 },
+    { id: "sound-01", label: "あらすじ", file: "./audio/20260821_120941000_iOS.mp3",   color: "#9333EA", order: 8 }
   ];
   /* ▲▲▲ 編集してよいのはここまで ▲▲▲ */
 
@@ -282,7 +297,7 @@
   // id をキーに、各音源の要素・状態をまとめて保持する
   const soundStates = new Map();
 
-  // 残り時間を「分:秒」の表記にする
+  // 残り時間を「分:秒」の表記にする（不明な場合は空文字を返す）
   function formatTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) return "";
     const m = Math.floor(seconds / 60);
@@ -296,9 +311,9 @@
     statusRegionEl.dataset.error = isError ? "true" : "false";
   }
 
-  // ボタンの見た目（再生中表示・残り時間・エラー表示）を更新する
+  // ボタンの見た目（再生中表示・残り時間・進行状況バー・エラー表示）を更新する
   function updateButtonVisual(state) {
-    const { buttonEl, statusTextEl, audioEl } = state;
+    const { buttonEl, statusTextEl, progressFillEl, audioEl } = state;
     const playing = !audioEl.paused && !audioEl.ended;
 
     buttonEl.classList.toggle("is-playing", playing);
@@ -307,13 +322,23 @@
     if (state.hasError) {
       buttonEl.classList.add("has-error");
       statusTextEl.textContent = "再生エラー";
+      progressFillEl.style.width = "0%";
       return;
     }
     buttonEl.classList.remove("has-error");
 
+    // 進行状況バー（durationが取得できている場合のみ計算）
+    let percent = 0;
+    if (isFinite(audioEl.duration) && audioEl.duration > 0) {
+      percent = Math.min(100, Math.max(0, (audioEl.currentTime / audioEl.duration) * 100));
+    }
+    progressFillEl.style.width = percent + "%";
+
     if (playing) {
       const remaining = audioEl.duration - audioEl.currentTime;
-      statusTextEl.textContent = "残り " + formatTime(remaining);
+      const remainingText = formatTime(remaining);
+      // durationが未取得のときは「残り 」だけの中途半端な表示にしない
+      statusTextEl.textContent = remainingText ? ("残り " + remainingText) : "";
     } else {
       statusTextEl.textContent = "";
     }
@@ -321,8 +346,13 @@
 
   // 指定した音源だけを止めて先頭へ戻す（一覧走査時に共通で使う）
   function stopOneSound(state) {
-    state.audioEl.pause();
-    state.audioEl.currentTime = 0;
+    try {
+      state.audioEl.pause();
+      state.audioEl.currentTime = 0;
+    } catch (err) {
+      // 読み込み前の状態でcurrentTimeを操作すると例外になる環境があるため無視する
+    }
+    updateButtonVisual(state); // イベント発火を待たず即座に見た目を反映する
   }
 
   // すべての音源を停止する（赤ボタン・非表示化・エラー時などに使用）
@@ -355,7 +385,12 @@
 
     // 同じボタンの連打・別ボタンへの切り替え、どちらの場合も先頭から再生する
     state.hasError = false;
-    state.audioEl.currentTime = 0;
+    try {
+      state.audioEl.currentTime = 0;
+    } catch (err) {
+      // 読み込み前でcurrentTimeが設定できない場合は無視し、そのままplay()を試みる
+    }
+    updateButtonVisual(state); // 進行状況バーなどを即座にリセット表示する
 
     // play()はイベントハンドラ内で、非同期処理を挟まず直ちに呼び出す
     const playPromise = state.audioEl.play();
@@ -382,8 +417,16 @@
     const statusTextEl = document.createElement("span");
     statusTextEl.className = "sound-status";
 
+    // 進行状況バー（テキストと併用し、色だけに頼らない表示にする）
+    const progressTrackEl = document.createElement("span");
+    progressTrackEl.className = "sound-progress-track";
+    const progressFillEl = document.createElement("span");
+    progressFillEl.className = "sound-progress-fill";
+    progressTrackEl.appendChild(progressFillEl);
+
     buttonEl.appendChild(labelEl);
     buttonEl.appendChild(statusTextEl);
+    buttonEl.appendChild(progressTrackEl);
 
     // 音声要素（再生専用。fetchは使わずAudioの通常読み込みで参照する）
     const audioEl = new Audio();
@@ -394,6 +437,7 @@
       config,
       buttonEl,
       statusTextEl,
+      progressFillEl,
       audioEl,
       hasError: false
     };
@@ -411,9 +455,34 @@
     gridEl.appendChild(buttonEl);
   }
 
+  // order の値で並べ替えるための比較関数（未指定は末尾へ、同数字は元の並びを維持する安定ソート）
+  function compareByOrder(a, b) {
+    const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+    const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
+  }
+
   // 設定配列から全ボタンを自動生成する（HTMLへの直書きはしない）
+  // order順に並べ替えたうえで生成し、idが重複している場合は自動的にユニーク化する
   function buildAllSoundButtons() {
-    SOUND_CONFIG.forEach(createSoundEntry);
+    const usedIds = new Set();
+    let hasDuplicateId = false;
+
+    // 元の配列は書き換えず、並べ替え済みのコピーを作る
+    // Array.prototype.sortはモダンブラウザで安定ソート（同順位は元の順序を維持）
+    const sortedConfig = SOUND_CONFIG.slice().sort(compareByOrder);
+
+    sortedConfig.forEach((config) => {
+      let entryConfig = config;
+      if (usedIds.has(config.id)) {
+        hasDuplicateId = true;
+        entryConfig = Object.assign({}, config, { id: config.id + "-dup" + usedIds.size });
+      }
+      usedIds.add(entryConfig.id);
+      createSoundEntry(entryConfig);
+    });
+
+    return hasDuplicateId;
   }
 
   // 重ね再生スイッチの切り替え
@@ -434,8 +503,12 @@
   });
 
   // 初期化
-  buildAllSoundButtons();
-  setStatusMessage("準備完了", false);
+  const hasDuplicateId = buildAllSoundButtons();
+  if (hasDuplicateId) {
+    setStatusMessage("SOUND_CONFIGのidが重複しています。idを確認してください", true);
+  } else {
+    setStatusMessage("準備完了", false);
+  }
 </script>
 
 </body>
