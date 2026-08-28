@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- ズーム禁止指定は入れない（アクセシビリティのため） -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ポン出しアプリ</title>
+
+<style>
+  /* ==========================================================
+     基本設定
+  ========================================================== */
+  :root {
+    color-scheme: dark;
+    --bg: #0b0f19;
+    --panel: #141a2a;
+    --text: #f5f7fa;
+    --muted: #9aa4b8;
+    --danger: #dc2626;
+    --danger-active: #991b1b;
+    --focus: #facc15;
+    --border: #2a3350;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    /* 100vhのみに依存しない。対応環境ではdvh/svhで上書きされる */
+    height: 100vh;
+    height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    /* 画面端の切り欠き・ノッチとUIが重ならないようにする */
+    padding: max(12px, env(safe-area-inset-top, 0px))
+             max(12px, env(safe-area-inset-right, 0px))
+             max(12px, env(safe-area-inset-bottom, 0px))
+             max(12px, env(safe-area-inset-left, 0px));
+    overflow-x: hidden; /* 横スクロール禁止 */
+  }
+
+  h1 {
+    font-size: clamp(18px, 2.4vw, 26px);
+    margin: 4px 0 8px;
+  }
+
+  /* ==========================================================
+     上部の操作パネル（重ね再生スイッチ・案内・ステータス）
+  ========================================================== */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+  }
+
+  .overlap-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+  }
+  .overlap-switch input {
+    width: 22px;
+    height: 22px;
+  }
+
+  .volume-hint {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  #statusRegion {
+    font-size: 14px;
+    min-height: 1.2em;
+  }
+  #statusRegion[data-error="true"] {
+    color: #fecaca;
+    font-weight: bold;
+  }
+
+  /* ==========================================================
+     すべて停止ボタン（常に見える大きな赤ボタン）
+  ========================================================== */
+  #stopAllBtn {
+    display: block;
+    width: 100%;
+    min-height: 72px;
+    font-size: clamp(18px, 2.6vw, 24px);
+    font-weight: bold;
+    color: #fff;
+    background: var(--danger);
+    border: 3px solid #7f1d1d;
+    border-radius: 14px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+    flex-shrink: 0;
+  }
+  #stopAllBtn:active {
+    background: var(--danger-active);
+    transform: scale(0.98);
+  }
+  #stopAllBtn:focus-visible {
+    outline: 4px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  /* ==========================================================
+     効果音ボタンのグリッド
+     縦向き2列 / 横向き4列を基本に、minmax・clampで
+     Split View等の狭い幅でも破綻しないようにする
+  ========================================================== */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: clamp(10px, 2vw, 20px);
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding-bottom: 8px;
+  }
+
+  @media (orientation: landscape) {
+    .grid {
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+    }
+  }
+
+  /* 画面幅がとても狭い場合（Split View等）の追加フォールバック */
+  @media (max-width: 480px) {
+    .grid {
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    }
+  }
+
+  .sound-btn {
+    position: relative;
+    min-height: 88px;
+    height: 100%;
+    border-radius: 16px;
+    border: 3px solid rgba(255,255,255,0.15);
+    background: var(--btn-color, #334155);
+    color: #fff;
+    font-size: clamp(16px, 2vw, 22px);
+    font-weight: bold;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .sound-btn:active {
+    transform: scale(0.96);
+    filter: brightness(0.85);
+  }
+
+  .sound-btn:focus-visible {
+    outline: 4px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  .sound-btn.is-playing {
+    border-color: #fff;
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.35);
+  }
+
+  .sound-label {
+    word-break: break-word;
+  }
+
+  .sound-status {
+    font-size: 13px;
+    font-weight: normal;
+    background: rgba(0,0,0,0.35);
+    border-radius: 8px;
+    padding: 2px 8px;
+    min-height: 1.4em;
+  }
+
+  .sound-btn.is-playing .sound-status::before {
+    content: "▶ 再生中 ";
+  }
+
+  /* エラー表示の視覚強調（色だけに頼らない） */
+  .sound-btn.has-error {
+    border-color: #fecaca;
+    border-style: dashed;
+  }
+
+  /* アニメーションを抑えたい利用者への配慮 */
+  @media (prefers-reduced-motion: reduce) {
+    .sound-btn, #stopAllBtn {
+      transition: none !important;
+    }
+  }
+
+  /* スクリーンリーダー専用の見えないテキスト用（必要になった場合の予備） */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+  <h1>ポン出しアプリ</h1>
+
+  <div class="toolbar">
+    <label class="overlap-switch">
+      <input type="checkbox" id="overlapToggle">
+      重ね再生（複数の音を同時に鳴らす）
+    </label>
+    <div id="statusRegion" role="status" aria-live="polite">準備完了</div>
+    <div class="volume-hint">音量調整は iPad 本体の物理ボタンで行ってください</div>
+  </div>
+
+  <button id="stopAllBtn" aria-label="すべての音を今すぐ停止する">
+    ■ すべて停止
+  </button>
+
+  <div class="grid" id="soundGrid" aria-label="効果音ボタン一覧"></div>
+
+<script>
+  "use strict";
+
+  /* ============================================================
+     ▼▼▼ ここから生徒が編集してよい設定 ▼▼▼
+     音源を増やしたいときは、この配列に1行追加するだけでOK。
+     id     : ボタンを区別するための名前（英数字、重複不可）
+     label  : ボタンに大きく表示される文字
+     file   : ./audio/ フォルダの中のMP3ファイル名（相対パス）
+     color  : ボタンの背景色（#から始まる16進数カラーコード）
+  ============================================================ */
+  const SOUND_CONFIG = [
+    { id: "sound-01", label: "音源1", file: "./audio/20260819_070139000_iOS.mp3", color: "#2563EB" },
+    { id: "sound-02", label: "音源2", file: "./audio/20260821_061138000_iOS.mp3", color: "#7C3AED" },
+    { id: "sound-03", label: "音源3", file: "./audio/20260821_061138000_iOS 1.mp3", color: "#0F766E" },
+    { id: "sound-04", label: "音源4", file: "./audio/20260821_061138000_iOS 2.mp3", color: "#B45309" },
+    { id: "sound-05", label: "音源5", file: "./audio/20260821_061645000_iOS.mp3", color: "#BE123C" },
+    { id: "sound-06", label: "音源6", file: "./audio/20260821_061717000_iOS.mp3", color: "#0369A1" },
+    { id: "sound-07", label: "音源7", file: "./audio/20260821_061739000_iOS.mp3", color: "#4D7C0F" },
+    { id: "sound-08", label: "音源8", file: "./audio/20260821_120941000_iOS.mp3", color: "#9333EA" }
+  ];
+  /* ▲▲▲ 編集してよいのはここまで ▲▲▲ */
+
+
+  /* ============================================================
+     ▼▼▼ ここから下は通常編集不要（動作の仕組み） ▼▼▼
+  ============================================================ */
+
+  const gridEl = document.getElementById("soundGrid");
+  const statusRegionEl = document.getElementById("statusRegion");
+  const overlapToggleEl = document.getElementById("overlapToggle");
+  const stopAllBtnEl = document.getElementById("stopAllBtn");
+
+  let overlapEnabled = false; // 重ね再生スイッチの状態（初期値オフ）
+
+  // id をキーに、各音源の要素・状態をまとめて保持する
+  const soundStates = new Map();
+
+  // 残り時間を「分:秒」の表記にする
+  function formatTime(seconds) {
+    if (!isFinite(seconds) || seconds < 0) return "";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+    return m + ":" + s;
+  }
+
+  // 画面上部の案内文を更新する
+  function setStatusMessage(message, isError) {
+    statusRegionEl.textContent = message;
+    statusRegionEl.dataset.error = isError ? "true" : "false";
+  }
+
+  // ボタンの見た目（再生中表示・残り時間・エラー表示）を更新する
+  function updateButtonVisual(state) {
+    const { buttonEl, statusTextEl, audioEl } = state;
+    const playing = !audioEl.paused && !audioEl.ended;
+
+    buttonEl.classList.toggle("is-playing", playing);
+    buttonEl.setAttribute("aria-pressed", playing ? "true" : "false");
+
+    if (state.hasError) {
+      buttonEl.classList.add("has-error");
+      statusTextEl.textContent = "再生エラー";
+      return;
+    }
+    buttonEl.classList.remove("has-error");
+
+    if (playing) {
+      const remaining = audioEl.duration - audioEl.currentTime;
+      statusTextEl.textContent = "残り " + formatTime(remaining);
+    } else {
+      statusTextEl.textContent = "";
+    }
+  }
+
+  // 指定した音源だけを止めて先頭へ戻す（一覧走査時に共通で使う）
+  function stopOneSound(state) {
+    state.audioEl.pause();
+    state.audioEl.currentTime = 0;
+  }
+
+  // すべての音源を停止する（赤ボタン・非表示化・エラー時などに使用）
+  function stopAllSounds() {
+    soundStates.forEach(stopOneSound);
+    setStatusMessage("すべて停止しました", false);
+  }
+
+  // 再生できなかったときの共通エラー表示処理
+  function showPlaybackError(state) {
+    state.hasError = true;
+    updateButtonVisual(state);
+    setStatusMessage(
+      "音源を再生できません。ファイル名と配置を確認してください（" + state.config.label + "）",
+      true
+    );
+  }
+
+  // ボタンがタップされたときの再生処理本体
+  function handleSoundButtonTap(id) {
+    const state = soundStates.get(id);
+    if (!state) return;
+
+    // 単独再生モードのときは、自分以外の再生中の音を止める
+    if (!overlapEnabled) {
+      soundStates.forEach((otherState, otherId) => {
+        if (otherId !== id) stopOneSound(otherState);
+      });
+    }
+
+    // 同じボタンの連打・別ボタンへの切り替え、どちらの場合も先頭から再生する
+    state.hasError = false;
+    state.audioEl.currentTime = 0;
+
+    // play()はイベントハンドラ内で、非同期処理を挟まず直ちに呼び出す
+    const playPromise = state.audioEl.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch(() => showPlaybackError(state));
+    }
+  }
+
+  // SOUND_CONFIGから1件分のボタンとaudio要素を生成する
+  function createSoundEntry(config) {
+    // 効果音ボタン本体
+    const buttonEl = document.createElement("button");
+    buttonEl.type = "button";
+    buttonEl.className = "sound-btn";
+    buttonEl.style.setProperty("--btn-color", config.color);
+    buttonEl.dataset.id = config.id;
+    buttonEl.setAttribute("aria-label", config.label + " を再生");
+    buttonEl.setAttribute("aria-pressed", "false");
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "sound-label";
+    labelEl.textContent = config.label;
+
+    const statusTextEl = document.createElement("span");
+    statusTextEl.className = "sound-status";
+
+    buttonEl.appendChild(labelEl);
+    buttonEl.appendChild(statusTextEl);
+
+    // 音声要素（再生専用。fetchは使わずAudioの通常読み込みで参照する）
+    const audioEl = new Audio();
+    audioEl.preload = "auto";
+    audioEl.src = config.file; // パスは手動エンコードせず、DOMのsrcプロパティへそのまま設定する
+
+    const state = {
+      config,
+      buttonEl,
+      statusTextEl,
+      audioEl,
+      hasError: false
+    };
+
+    // 再生状態の変化に応じてボタン表示を更新する
+    audioEl.addEventListener("play", () => updateButtonVisual(state));
+    audioEl.addEventListener("pause", () => updateButtonVisual(state));
+    audioEl.addEventListener("ended", () => updateButtonVisual(state));
+    audioEl.addEventListener("timeupdate", () => updateButtonVisual(state));
+    audioEl.addEventListener("error", () => showPlaybackError(state));
+
+    buttonEl.addEventListener("click", () => handleSoundButtonTap(config.id));
+
+    soundStates.set(config.id, state);
+    gridEl.appendChild(buttonEl);
+  }
+
+  // 設定配列から全ボタンを自動生成する（HTMLへの直書きはしない）
+  function buildAllSoundButtons() {
+    SOUND_CONFIG.forEach(createSoundEntry);
+  }
+
+  // 重ね再生スイッチの切り替え
+  overlapToggleEl.addEventListener("change", () => {
+    overlapEnabled = overlapToggleEl.checked;
+    setStatusMessage(
+      overlapEnabled ? "重ね再生をオンにしました" : "重ね再生をオフにしました",
+      false
+    );
+  });
+
+  // 赤い「すべて停止」ボタン
+  stopAllBtnEl.addEventListener("click", stopAllSounds);
+
+  // アプリが非表示（他アプリへ切替・スリープ等）になったら誤再生を防ぐため全停止
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopAllSounds();
+  });
+
+  // 初期化
+  buildAllSoundButtons();
+  setStatusMessage("準備完了", false);
+</script>
+
+</body>
+</html>
