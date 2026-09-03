@@ -278,26 +278,16 @@
     { id: "sound-05", label: "バサー",   file: "./audio/20260821_061645000_iOS.mp3",   color: "#BE123C", order: 5 },
     { id: "sound-06", label: "シュイン", file: "./audio/20260821_061717000_iOS.mp3",   color: "#0369A1", order: 6 },
     { id: "sound-07", label: "ホワン",   file: "./audio/20260821_061739000_iOS.mp3",   color: "#4D7C0F", order: 7 },
-    { id: "sound-01", label: "あらすじ", file: "./audio/20260821_120941000_iOS.mp3",   color: "#9333EA", order: 1 }
+    { id: "sound-01", label: "あらすじ", file: "./audio/20260821_120941000_iOS.mp3",   color: "#9333EA", order: 1 },
 
-    /* ------------------------------------------------------------
-       動画１〜５は、ファイル名と配置が確認できるまで一時的にコメントアウトしています。
-       （このままだと全ボタンで「音源を再生できません」エラーが出ていたため）
-
-       有効化する手順：
-       1. iPadの「ファイル」アプリで、実際の音声ファイル名（拡張子込み）を確認する
-          例：ファイルを長押し →「情報を見る」で正式名称が表示されます
-       2. 下のコメントを外し、file の値を実際のファイル名に書き換える
-          （拡張子が .mp3 でなく .m4a や .wav の場合は拡張子も直す）
-       3. 各行の末尾がカンマ区切りになるよう、直前の行（あらすじ）の末尾に
-          カンマを付け忘れないように注意する
-
-       ,{ id: "sound-09", label: "動画１", file: "./audio/video-20260901-054742-53ca2416_7746.mp3",   color: "#9333EA", order: 9 },
-       ,{ id: "sound-10", label: "動画２", file: "./audio/video-20260901-054742-103d118a_3052.mp3",   color: "#9333EA", order: 10 },
-       ,{ id: "sound-11", label: "動画３", file: "./audio/video-20260901-054742-402d5ce9_4643.mp3",   color: "#9333EA", order: 11 },
-       ,{ id: "sound-12", label: "動画４", file: "./audio/video-20260901-054742-781ad0ea_6575.mp3",   color: "#9333EA", order: 12 },
-       ,{ id: "sound-13", label: "動画５", file: "./audio/video-20260901-054742-f8a4de47_8862.mp3",   color: "#9333EA", order: 13 }
-    ------------------------------------------------------------ */
+    /* 動画１〜５：audioフォルダ内の該当ファイルを video1.mp3〜video5.mp3 という
+       名前にリネームしてください。拡張子が .mp3 でない場合（.m4aなど）は、
+       下の file の拡張子もそれに合わせて書き換えてください。 */
+    { id: "sound-09", label: "動画１", file: "./audio/video1.mp3", color: "#9333EA", order: 9 },
+    { id: "sound-10", label: "動画２", file: "./audio/video2.mp3", color: "#9333EA", order: 10 },
+    { id: "sound-11", label: "動画３", file: "./audio/video3.mp3", color: "#9333EA", order: 11 },
+    { id: "sound-12", label: "動画４", file: "./audio/video4.mp3", color: "#9333EA", order: 12 },
+    { id: "sound-13", label: "動画５", file: "./audio/video5.mp3", color: "#9333EA", order: 13 }
   ];
   /* ▲▲▲ 編集してよいのはここまで ▲▲▲ */
 
